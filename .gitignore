@@ -1,0 +1,17 @@
+# MATLAB temporary and generated artifacts
+results/*
+!results/.gitkeep
+*.asv
+*.m~
+*.mex*
+*.mat
+*.fig
+*.png
+
+# Local source material containing personal information
+docs/*.docx
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
