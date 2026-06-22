@@ -40,15 +40,30 @@ for k = 1:n_slots
         n_pilots = cfg.pilot.per_slot;
     end
     [y, offsets] = pilot_observation(truth, cfg, n_pilots, scenario.physical_rf);
-    [x_pred, P_pred] = ekf_predict(x_hat, P, cfg, scenario.model_rf);
+    if k == 1
+        [initial_position, ~] = coarse_position_estimate(y, x_hat, cfg);
+        x_hat(1:2) = initial_position;
+        P(1, 1) = cfg.initializer.range_std_m^2;
+        P(2, 2) = cfg.initializer.angle_std_rad^2;
+        x_pred = x_hat;
+        P_pred = P;
+    else
+        [x_pred, P_pred] = ekf_predict(x_hat, P, cfg, scenario.model_rf);
+    end
 
     if scenario.model_rf
         if k == 1
-            x_pred(5) = coarse_cfo_estimate(y, cfg.pilot.spacing);
+            if scenario.physical_rf
+                x_pred(5) = coarse_cfo_estimate(y, cfg.pilot.spacing);
+            else
+                x_pred(5:6) = 0;
+            end
             P_pred(5, 5) = min(P_pred(5, 5), cfg.initial_cov(5, 5));
         end
-        phi_measured = common_phase_estimate(y, x_pred, offsets, cfg);
-        x_pred(6) = phase_blend(x_pred(6), phi_measured, cfg.filter.cpe_blend);
+        if scenario.physical_rf
+            phi_measured = common_phase_estimate(y, x_pred, offsets, cfg);
+            x_pred(6) = phase_blend(x_pred(6), phi_measured, cfg.filter.cpe_blend);
+        end
     end
 
     [x_hat, P, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, scenario.model_rf);

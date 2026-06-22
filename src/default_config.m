@@ -44,6 +44,14 @@ cfg.pilot.initial_burst = 32;
 cfg.pilot.spacing = cfg.track_period / 8;
 cfg.pilot.power = 1;
 
+cfg.initializer = struct();
+cfg.initializer.range_half_width_m = 2.0;
+cfg.initializer.range_step_m = 0.10;
+cfg.initializer.angle_half_width_rad = deg2rad(6);
+cfg.initializer.angle_step_rad = deg2rad(0.25);
+cfg.initializer.range_std_m = 0.25;
+cfg.initializer.angle_std_rad = deg2rad(0.5);
+
 cfg.filter = struct();
 cfg.filter.process_std = [0.015; deg2rad(0.02); 0.10; 0.10; 8; deg2rad(3)];
 cfg.filter.jacobian_step = [1e-3; 1e-5; 1e-3; 1e-3; 0.5; 1e-4];
