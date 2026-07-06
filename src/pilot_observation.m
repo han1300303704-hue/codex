@@ -1,4 +1,4 @@
-function [y, offsets] = pilot_observation(true_state, cfg, n_pilots, include_hardware)
+function [y, offsets] = pilot_observation(true_state, cfg, n_pilots, include_hardware, observation_beam)
 %PILOT_OBSERVATION Generate N-by-M uplink pilot observations in one slot.
 % Phase noise is common to the array but evolves within the pilot mini-burst.
 
@@ -8,10 +8,18 @@ end
 if nargin < 4
     include_hardware = true;
 end
+if nargin < 5
+    observation_beam = [];
+end
 
 offsets = (0:n_pilots-1) * cfg.pilot.spacing;
 channel = spherical_channel(true_state(1), true_state(2), cfg);
-signal = sqrt(cfg.pilot.power) * channel.h;
+if isempty(observation_beam)
+    effective_beam_gain = 1;
+else
+    effective_beam_gain = max(beam_gain(true_state, observation_beam, cfg), cfg.pilot.beam_gain_floor);
+end
+signal = sqrt(cfg.pilot.power * effective_beam_gain) * channel.h;
 noise_variance = cfg.pilot.power / (10^(cfg.tx_snr_db / 10));
 y = zeros(cfg.n_ant, n_pilots);
 

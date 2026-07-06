@@ -12,6 +12,7 @@ doppler_spread_sum = zeros(1, n_slots);
 lost_count = 0;
 loss_event_count = 0;
 reacquisition_count = 0;
+outage_fraction_sum = 0;
 
 for mc = 1:n_mc
     % Common random numbers keep ablation comparisons statistically fair.
@@ -26,6 +27,7 @@ for mc = 1:n_mc
     lost_count = lost_count + double(trial.lost);
     loss_event_count = loss_event_count + trial.loss_events;
     reacquisition_count = reacquisition_count + trial.reacquisition_count;
+    outage_fraction_sum = outage_fraction_sum + trial.outage_fraction;
 end
 
 result = struct();
@@ -39,6 +41,7 @@ result.position_rmse_m = sqrt(position_sq_sum / n_mc);
 result.cfo_rmse_hz = sqrt(cfo_sq_sum / n_mc);
 result.mean_doppler_spread_hz = doppler_spread_sum / n_mc;
 result.loss_probability = lost_count / n_mc;
+result.slot_outage_probability = outage_fraction_sum / n_mc;
 result.mean_loss_events = loss_event_count / n_mc;
 result.mean_reacquisitions = reacquisition_count / n_mc;
 result.n_mc = n_mc;

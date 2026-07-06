@@ -1,9 +1,12 @@
-function [x_post, P_post, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, model_hardware)
+function [x_post, P_post, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, model_hardware, observation_beam)
 %EKF_UPDATE Information-form EKF correction for high-dimensional pilots.
 % Using the information form avoids inversion of an (2NM)-by-(2NM) matrix.
 
+if nargin < 7
+    observation_beam = [];
+end
 z = [real(y(:)); imag(y(:))];
-z_hat = measurement_model(x_pred, offsets, cfg, model_hardware);
+z_hat = measurement_model(x_pred, offsets, cfg, model_hardware, observation_beam);
 residual = z - z_hat;
 n_state = numel(x_pred);
 H = zeros(numel(z), n_state);
@@ -12,8 +15,8 @@ steps = cfg.filter.jacobian_step(:);
 for d = 1:n_state
     perturb = zeros(n_state, 1);
     perturb(d) = steps(d);
-    h_plus = measurement_model(x_pred + perturb, offsets, cfg, model_hardware);
-    h_minus = measurement_model(x_pred - perturb, offsets, cfg, model_hardware);
+    h_plus = measurement_model(x_pred + perturb, offsets, cfg, model_hardware, observation_beam);
+    h_minus = measurement_model(x_pred - perturb, offsets, cfg, model_hardware, observation_beam);
     H(:, d) = (h_plus - h_minus) / (2 * steps(d));
 end
 

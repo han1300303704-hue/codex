@@ -28,7 +28,9 @@ reacquire = false;
 loss_counter = 0;
 loss_events = 0;
 reacquisition_count = 0;
+outage_slots = 0;
 beam_modes = cell(1, n_slots);
+current_beam = [];
 
 for k = 1:n_slots
     if k > 1
@@ -39,7 +41,12 @@ for k = 1:n_slots
     else
         n_pilots = cfg.pilot.per_slot;
     end
-    [y, offsets] = pilot_observation(truth, cfg, n_pilots, scenario.physical_rf);
+    if reacquire
+        observation_beam = [];
+    else
+        observation_beam = current_beam;
+    end
+    [y, offsets] = pilot_observation(truth, cfg, n_pilots, scenario.physical_rf, observation_beam);
     if k == 1
         [initial_position, ~] = coarse_position_estimate(y, x_hat, cfg);
         x_hat(1:2) = initial_position;
@@ -66,13 +73,14 @@ for k = 1:n_slots
         end
     end
 
-    [x_hat, P, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, scenario.model_rf);
+    [x_hat, P, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, scenario.model_rf, observation_beam);
     [beam, selection] = select_beam(x_hat, P, y, offsets, cfg, ...
         scenario.quantized, scenario.robust, reacquire);
     if reacquire
         reacquisition_count = reacquisition_count + 1;
     end
     reacquire = false;
+    current_beam = beam;
 
     gain(k) = beam_gain(truth, beam, cfg);
     range_error(k) = abs(x_hat(1) - truth(1));
@@ -84,6 +92,7 @@ for k = 1:n_slots
     beam_modes{k} = selection.mode;
 
     if gain(k) < cfg.beam.loss_gain_threshold
+        outage_slots = outage_slots + 1;
         loss_counter = loss_counter + 1;
     else
         loss_counter = 0;
@@ -105,6 +114,7 @@ trial.innovation = innovation;
 trial.doppler_spread_hz = doppler_spread_hz;
 trial.loss_events = loss_events;
 trial.lost = loss_events > 0;
+trial.outage_fraction = outage_slots / n_slots;
 trial.reacquisition_count = reacquisition_count;
 trial.beam_modes = beam_modes;
 end

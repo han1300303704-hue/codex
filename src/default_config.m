@@ -43,6 +43,7 @@ cfg.pilot.per_slot = 4;
 cfg.pilot.initial_burst = 32;
 cfg.pilot.spacing = cfg.track_period / 8;
 cfg.pilot.power = 1;
+cfg.pilot.beam_gain_floor = 1e-3;
 
 cfg.initializer = struct();
 cfg.initializer.range_half_width_m = 2.0;

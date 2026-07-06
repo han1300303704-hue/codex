@@ -36,9 +36,11 @@ save_figure_pair(fig, cfg.output_dir, 'tracking_error'); close(fig);
 
 fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Lock loss');
 losses = [results.core.loss_probability];
-bar(losses, 'FaceColor', [0.2 0.5 0.8]); grid on; ylim([0 1]);
+slot_outages = [results.core.slot_outage_probability];
+bar([losses(:), slot_outages(:)]); grid on; ylim([0 1]);
 set(gca, 'XTick', 1:numel(labels), 'XTickLabel', labels, 'XTickLabelRotation', 20);
-ylabel('失锁概率'); title('固定参数下的失锁概率');
+ylabel('概率'); title('固定参数下的失锁概率');
+legend({'曾经失锁概率', '时隙失锁占比'}, 'Location', 'best');
 save_figure_pair(fig, cfg.output_dir, 'lock_loss_probability'); close(fig);
 
 fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Robustness scans');
