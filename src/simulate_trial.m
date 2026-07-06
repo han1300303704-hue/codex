@@ -74,6 +74,12 @@ for k = 1:n_slots
     end
 
     [x_hat, P, diagnostics] = ekf_update(x_pred, P_pred, y, offsets, cfg, scenario.model_rf, observation_beam);
+    if scenario.model_rf && cfg.tracker.local_refinement
+        [refined_position, ~] = refine_position_estimate(y, x_hat, cfg);
+        x_hat(1:2) = refined_position;
+        P(1, 1) = min(P(1, 1), cfg.tracker.refine_range_std_m^2);
+        P(2, 2) = min(P(2, 2), cfg.tracker.refine_angle_std_rad^2);
+    end
     [beam, selection] = select_beam(x_hat, P, y, offsets, cfg, ...
         scenario.quantized, scenario.robust, reacquire);
     if reacquire

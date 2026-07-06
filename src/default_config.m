@@ -12,7 +12,7 @@ cfg.seed = 20260623;
 cfg.c = 299792458;
 cfg.fc = 300e9;
 cfg.lambda = cfg.c / cfg.fc;
-cfg.n_ant = 256;
+cfg.n_ant = 1024;
 cfg.spacing = cfg.lambda / 2;
 cfg.tx_snr_db = 10;
 cfg.track_period = 50e-6;
@@ -21,8 +21,8 @@ cfg.n_mc = 50;
 cfg.figure_visible = 'off';
 cfg.output_dir = fullfile(pwd, 'results');
 
-cfg.initial_state = [10; deg2rad(20); 2; 3; 2e3; 0];
-cfg.initial_error_std = [0.40; deg2rad(1.5); 0.35; 0.35; 350; deg2rad(20)];
+cfg.initial_state = [1.5; deg2rad(20); 2; 3; 2e3; 0];
+cfg.initial_error_std = [0.20; deg2rad(1.5); 0.35; 0.35; 350; deg2rad(20)];
 cfg.initial_cov = diag(cfg.initial_error_std .^ 2);
 
 cfg.channel = struct();
@@ -46,12 +46,21 @@ cfg.pilot.power = 1;
 cfg.pilot.beam_gain_floor = 1e-3;
 
 cfg.initializer = struct();
-cfg.initializer.range_half_width_m = 2.0;
-cfg.initializer.range_step_m = 0.10;
+cfg.initializer.range_half_width_m = 0.8;
+cfg.initializer.range_step_m = 0.01;
 cfg.initializer.angle_half_width_rad = deg2rad(6);
-cfg.initializer.angle_step_rad = deg2rad(0.25);
+cfg.initializer.angle_step_rad = deg2rad(0.05);
 cfg.initializer.range_std_m = 0.25;
 cfg.initializer.angle_std_rad = deg2rad(0.5);
+
+cfg.tracker = struct();
+cfg.tracker.local_refinement = true;
+cfg.tracker.refine_range_half_width_m = 0.12;
+cfg.tracker.refine_range_step_m = 0.005;
+cfg.tracker.refine_angle_half_width_rad = deg2rad(0.35);
+cfg.tracker.refine_angle_step_rad = deg2rad(0.01);
+cfg.tracker.refine_range_std_m = 0.03;
+cfg.tracker.refine_angle_std_rad = deg2rad(0.04);
 
 cfg.filter = struct();
 cfg.filter.process_std = [0.015; deg2rad(0.02); 0.10; 0.10; 8; deg2rad(3)];
@@ -71,7 +80,7 @@ cfg.beam.robust_penalty = 0.25;
 cfg.beam.measurement_blend = 0.0;
 cfg.beam.loss_gain_threshold = 0.5;
 cfg.beam.loss_consecutive_slots = 3;
-cfg.beam.reacquire_ranges = linspace(4, 16, 7);
+cfg.beam.reacquire_ranges = linspace(0.8, 4.0, 9);
 cfg.beam.reacquire_angles = deg2rad(-45:3:45);
 
 cfg.scan = struct();
