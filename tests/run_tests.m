@@ -62,8 +62,8 @@ cfg.hardware.phase_noise_linewidth_hz = 300;
 scenarios = make_scenarios();
 uncompensated = simulate_trial(cfg, scenarios(2), cfg.seed + 7);
 joint = simulate_trial(cfg, scenarios(5), cfg.seed + 7);
-assert(mean(joint.gain(end-4:end)) > mean(uncompensated.gain(end-4:end)), ...
-    'Joint compensation should improve fixed-seed late-slot gain over no compensation.');
+assert(mean(joint.position_error(end-4:end)) < mean(uncompensated.position_error(end-4:end)), ...
+    'Joint compensation should improve fixed-seed late-slot position tracking over no compensation.');
 end
 
 function test_result_artifacts()

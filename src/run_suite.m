@@ -9,11 +9,16 @@ if ~exist(cfg.output_dir, 'dir')
 end
 
 scenarios = make_scenarios();
-core = repmat(struct(), 1, numel(scenarios));
+core = [];
 for s = 1:numel(scenarios)
     fprintf('[%d/%d] Running %s with %d Monte Carlo trials...\n', ...
         s, numel(scenarios), scenarios(s).label, cfg.n_mc);
-    core(s) = run_monte_carlo(cfg, scenarios(s));
+    result = run_monte_carlo(cfg, scenarios(s));
+    if s == 1
+        core = result;
+    else
+        core(s) = result;
+    end
 end
 
 bit_scan = struct('bits', cfg.scan.phase_bits, 'loss_probability', zeros(size(cfg.scan.phase_bits)), ...

@@ -44,10 +44,3 @@ P_post = P_candidate;
 diagnostics = struct('innovation_energy', innovation_energy, ...
     'residual_norm', norm(residual), 'jacobian', H);
 end
-
-function P = stabilize_covariance(P, floor_value)
-P = real((P + P') / 2);
-[V, D] = eig(P);
-eigenvalues = max(real(diag(D)), floor_value);
-P = real(V * diag(eigenvalues) * V');
-end
