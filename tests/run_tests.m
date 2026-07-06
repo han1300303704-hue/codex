@@ -6,6 +6,7 @@ addpath(fullfile(root, 'src'));
 fprintf('Running near-field beam-tracking tests...\n');
 test_focus_peak();
 test_quantizer_levels();
+test_offset_quantizer_not_worse();
 test_ideal_tracking_convergence();
 test_joint_improves_over_uncompensated();
 test_result_artifacts();
@@ -44,6 +45,22 @@ phase_index = beam.quantized_phase / step;
 assert(max(abs(phase_index - round(phase_index))) < 1e-10, ...
     'Quantized beam phases must lie on valid B-bit levels.');
 assert(abs(norm(beam.weights) - 1) < 1e-10, 'Beam weights must have unit norm.');
+end
+
+function test_offset_quantizer_not_worse()
+cfg = small_cfg();
+state = cfg.initial_state;
+nearest_cfg = cfg;
+nearest_cfg.beam.quantization_offset_search = false;
+optimized_cfg = cfg;
+optimized_cfg.beam.quantization_offset_search = true;
+for bits = 1:2
+    nearest = focus_beam(state(1), state(2), bits, nearest_cfg);
+    optimized = focus_beam(state(1), state(2), bits, optimized_cfg);
+    assert(beam_gain(state, optimized, optimized_cfg) + 1e-12 >= ...
+        beam_gain(state, nearest, nearest_cfg), ...
+        'Offset-search quantization must not reduce focus gain.');
+end
 end
 
 function test_ideal_tracking_convergence()
