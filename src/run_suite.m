@@ -21,6 +21,12 @@ for s = 1:numel(scenarios)
     end
 end
 
+joint_scan_scenario = scenarios(strcmp({scenarios.name}, 'joint'));
+if isempty(joint_scan_scenario)
+    error('run_suite:MissingJointScenario', 'Scenario "joint" is required for robustness scans.');
+end
+joint_scan_scenario = joint_scan_scenario(1);
+
 bit_scan = struct('bits', cfg.scan.phase_bits, ...
     'loss_probability', zeros(size(cfg.scan.phase_bits)), ...
     'slot_outage_probability', zeros(size(cfg.scan.phase_bits)), ...
@@ -29,8 +35,9 @@ for i = 1:numel(cfg.scan.phase_bits)
     scan_cfg = cfg;
     scan_cfg.n_mc = cfg.scan.n_mc;
     scan_cfg.hardware.phase_shifter_bits = cfg.scan.phase_bits(i);
+    joint_scan_scenario.phase_bits = cfg.scan.phase_bits(i);
     fprintf('[bit scan %d/%d] B=%d...\n', i, numel(cfg.scan.phase_bits), scan_cfg.hardware.phase_shifter_bits);
-    scan_result = run_monte_carlo(scan_cfg, scenarios(end));
+    scan_result = run_monte_carlo(scan_cfg, joint_scan_scenario);
     bit_scan.loss_probability(i) = scan_result.loss_probability;
     bit_scan.slot_outage_probability(i) = scan_result.slot_outage_probability;
     bit_scan.mean_gain(i) = mean(scan_result.mean_gain);
@@ -46,7 +53,7 @@ for i = 1:numel(cfg.scan.phase_linewidth_hz)
     scan_cfg.hardware.phase_noise_linewidth_hz = cfg.scan.phase_linewidth_hz(i);
     fprintf('[phase-noise scan %d/%d] linewidth=%g Hz...\n', i, numel(cfg.scan.phase_linewidth_hz), ...
         scan_cfg.hardware.phase_noise_linewidth_hz);
-    scan_result = run_monte_carlo(scan_cfg, scenarios(end));
+    scan_result = run_monte_carlo(scan_cfg, joint_scan_scenario);
     pn_scan.loss_probability(i) = scan_result.loss_probability;
     pn_scan.slot_outage_probability(i) = scan_result.slot_outage_probability;
     pn_scan.mean_gain(i) = mean(scan_result.mean_gain);
@@ -63,7 +70,10 @@ if isfield(cfg, 'stress') && cfg.stress.enabled
     stress_cfg.initial_state = cfg.stress.initial_state;
     stress_cfg.initial_error_std = cfg.stress.initial_error_std;
     stress_cfg.initial_cov = diag(stress_cfg.initial_error_std(:) .^ 2);
-    stress_scenarios = scenarios(strcmp({scenarios.name}, 'rf_quant_naive') | strcmp({scenarios.name}, 'joint'));
+    stress_scenarios = scenarios(strcmp({scenarios.name}, 'rf_quant_naive_2bit') | strcmp({scenarios.name}, 'joint_2bit'));
+    for i = 1:numel(stress_scenarios)
+        stress_scenarios(i).phase_bits = cfg.stress.phase_shifter_bits;
+    end
     for i = 1:numel(stress_scenarios)
         fprintf('[stress %d/%d] Running %s with B=%d, SNR=%g dB, vt=%g m/s...\n', ...
             i, numel(stress_scenarios), stress_scenarios(i).label, ...

@@ -61,7 +61,7 @@ cfg.hardware.cfo_hz = 2500;
 cfg.hardware.phase_noise_linewidth_hz = 300;
 scenarios = make_scenarios();
 uncompensated = simulate_trial(cfg, scenarios(2), cfg.seed + 7);
-joint = simulate_trial(cfg, scenarios(5), cfg.seed + 7);
+joint = simulate_trial(cfg, get_scenario(scenarios, 'joint'), cfg.seed + 7);
 assert(mean(joint.position_error(end-4:end)) < mean(uncompensated.position_error(end-4:end)), ...
     'Joint compensation should improve fixed-seed late-slot position tracking over no compensation.');
 end
@@ -79,4 +79,10 @@ for i = 1:numel(required)
     assert(exist(fullfile(cfg.output_dir, required{i}), 'file') == 2, ...
         ['Missing expected result artifact: ' required{i}]);
 end
+end
+
+function scenario = get_scenario(scenarios, name)
+idx = strcmp({scenarios.name}, name);
+assert(any(idx), ['Missing scenario: ' name]);
+scenario = scenarios(find(idx, 1, 'first'));
 end

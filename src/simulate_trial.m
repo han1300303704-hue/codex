@@ -2,6 +2,9 @@ function trial = simulate_trial(cfg, scenario, seed)
 %SIMULATE_TRIAL Run one closed-loop tracking realization for one scenario.
 
 rng(seed, 'twister');
+if isfield(scenario, 'phase_bits') && ~isnan(scenario.phase_bits)
+    cfg.hardware.phase_shifter_bits = scenario.phase_bits;
+end
 n_slots = cfg.n_slots;
 truth = cfg.initial_state(:);
 truth(5) = cfg.hardware.cfo_hz;
