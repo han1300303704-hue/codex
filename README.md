@@ -17,6 +17,7 @@ run_experiment
 - `tracking_error.fig/.png`：位置、距离和角度 RMSE；
 - `lock_loss_probability.fig/.png`：固定参数下的失锁概率；
 - `robustness_scans.fig/.png`：量化位宽和相位噪声扫描。
+- `stress_quantization_comparison.fig/.png`：低 SNR、2-bit 和高速横向运动下的朴素量化与联合量化策略对比。
 
 结果目录默认不纳入 Git；如需保留某次实验，请将输出复制到其他位置。
 

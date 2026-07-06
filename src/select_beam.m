@@ -24,8 +24,8 @@ if ~robust_selection
     return;
 end
 
-sigma_r = max(sqrt(P(1, 1)), 0.02);
-sigma_theta = max(sqrt(P(2, 2)), deg2rad(0.02));
+sigma_r = max([sqrt(P(1, 1)), cfg.beam.robust_min_range_std_m, 0.02]);
+sigma_theta = max([sqrt(P(2, 2)), cfg.beam.robust_min_angle_std_rad, deg2rad(0.02)]);
 offsets_local = cfg.beam.local_offsets * cfg.beam.local_sigma_scale;
 candidates = zeros(2, numel(offsets_local)^2);
 index = 0;
@@ -38,7 +38,10 @@ for dr = offsets_local
 end
 
 uncertainty_points = local_points(x_hat, sigma_r, sigma_theta, cfg);
+uncertainty_weights = local_weights(x_hat, uncertainty_points, sigma_r, sigma_theta);
 guard_points = guard_ring_points(x_hat, sigma_r, sigma_theta, cfg);
+y_average = mean(y, 2);
+y_norm = max(real(y_average' * y_average), eps);
 scores = -inf(1, size(candidates, 2));
 beams = cell(1, size(candidates, 2));
 for i = 1:size(candidates, 2)
@@ -51,8 +54,11 @@ for i = 1:size(candidates, 2)
     for p = 1:size(guard_points, 2)
         guard_gains(p) = beam_gain(guard_points(:, p), beams{i}, cfg);
     end
-    scores(i) = mean(main_gains) - cfg.beam.robust_penalty * ...
+    predicted_score = sum(uncertainty_weights .* main_gains) - cfg.beam.robust_penalty * ...
         (std(main_gains) + mean(guard_gains));
+    measurement_score = abs(beams{i}.weights' * y_average)^2 / y_norm;
+    scores(i) = (1 - cfg.beam.measurement_blend) * predicted_score + ...
+        cfg.beam.measurement_blend * measurement_score;
 end
 [best_score, best] = max(scores);
 beam = beams{best};
@@ -61,14 +67,28 @@ selection = struct('mode', 'robust_local', 'score', best_score, ...
 end
 
 function points = local_points(x_hat, sigma_r, sigma_theta, cfg)
-points = [x_hat(1), x_hat(1) + sigma_r, x_hat(1) - sigma_r, x_hat(1), x_hat(1); ...
-    x_hat(2), x_hat(2), x_hat(2), x_hat(2) + sigma_theta, x_hat(2) - sigma_theta];
+offsets = cfg.beam.uncertainty_offsets;
+points = zeros(2, numel(offsets)^2);
+index = 0;
+for dr = offsets
+    for dtheta = offsets
+        index = index + 1;
+        points(:, index) = [x_hat(1) + dr * sigma_r; x_hat(2) + dtheta * sigma_theta];
+    end
+end
 points(1, :) = max(points(1, :), cfg.channel.min_range);
 points(2, :) = wrap_angle(points(2, :));
 end
 
+function weights = local_weights(x_hat, points, sigma_r, sigma_theta)
+normalized_r = (points(1, :) - x_hat(1)) ./ max(sigma_r, eps);
+normalized_theta = wrap_angle(points(2, :) - x_hat(2)) ./ max(sigma_theta, eps);
+weights = exp(-0.5 * (normalized_r.^2 + normalized_theta.^2));
+weights = weights ./ sum(weights);
+end
+
 function points = guard_ring_points(x_hat, sigma_r, sigma_theta, cfg)
-scale = 3 * cfg.beam.local_sigma_scale;
+scale = cfg.beam.guard_sigma_scale;
 points = [x_hat(1) + scale * sigma_r, x_hat(1) - scale * sigma_r, ...
     x_hat(1), x_hat(1), x_hat(1) + scale * sigma_r, x_hat(1) - scale * sigma_r; ...
     x_hat(2), x_hat(2), x_hat(2) + scale * sigma_theta, ...

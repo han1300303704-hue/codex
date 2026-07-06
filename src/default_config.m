@@ -62,8 +62,13 @@ cfg.filter.innovation_gate = 60;
 
 cfg.beam = struct();
 cfg.beam.local_sigma_scale = 1.5;
-cfg.beam.local_offsets = [-1 0 1];
+cfg.beam.local_offsets = -2:2;
+cfg.beam.uncertainty_offsets = [-1 0 1];
+cfg.beam.robust_min_range_std_m = 0.60;
+cfg.beam.robust_min_angle_std_rad = deg2rad(1.0);
+cfg.beam.guard_sigma_scale = 4.0;
 cfg.beam.robust_penalty = 0.25;
+cfg.beam.measurement_blend = 0.0;
 cfg.beam.loss_gain_threshold = 0.5;
 cfg.beam.loss_consecutive_slots = 3;
 cfg.beam.reacquire_ranges = linspace(4, 16, 7);
@@ -72,13 +77,24 @@ cfg.beam.reacquire_angles = deg2rad(-45:3:45);
 cfg.scan = struct();
 cfg.scan.phase_bits = 1:4;
 cfg.scan.phase_linewidth_hz = [10 30 100 300 1000];
-cfg.scan.n_mc = min(20, cfg.n_mc);
+cfg.scan.n_mc = min(30, cfg.n_mc);
+
+cfg.stress = struct();
+cfg.stress.enabled = true;
+cfg.stress.n_mc = min(20, cfg.n_mc);
+cfg.stress.phase_shifter_bits = 2;
+cfg.stress.tx_snr_db = 0;
+cfg.stress.phase_noise_linewidth_hz = 300;
+cfg.stress.pilot_per_slot = 1;
+cfg.stress.initial_state = [10; deg2rad(20); 2; 12; 2e3; 0];
+cfg.stress.initial_error_std = [1.00; deg2rad(4.0); 0.80; 1.00; 500; deg2rad(30)];
 
 cfg = merge_struct(cfg, overrides);
 cfg.lambda = cfg.c / cfg.fc;
 cfg.spacing = cfg.lambda / 2;
 if isfield(overrides, 'n_mc') && (~isfield(overrides, 'scan') || ~isfield(overrides.scan, 'n_mc'))
-    cfg.scan.n_mc = min(20, cfg.n_mc);
+    cfg.scan.n_mc = min(30, cfg.n_mc);
+    cfg.stress.n_mc = min(20, cfg.n_mc);
 end
 if isfield(overrides, 'initial_error_std') && ~isfield(overrides, 'initial_cov')
     cfg.initial_cov = diag(cfg.initial_error_std(:) .^ 2);

@@ -47,11 +47,38 @@ fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Robustness sc
 tiledlayout(1, 2, 'TileSpacing', 'compact');
 nexttile;
 plot(results.bit_scan.bits, results.bit_scan.loss_probability, '-o', 'LineWidth', 1.5);
+hold on;
+plot(results.bit_scan.bits, results.bit_scan.slot_outage_probability, '--s', 'LineWidth', 1.5);
 grid on; ylim([0 1]); xlabel('移相器量化位宽 B'); ylabel('失锁概率'); title('量化位宽扫描');
+legend({'曾经失锁概率', '时隙失锁占比'}, 'Location', 'best');
 nexttile;
 semilogx(results.phase_noise_scan.linewidth_hz, results.phase_noise_scan.loss_probability, '-s', 'LineWidth', 1.5);
+hold on;
+semilogx(results.phase_noise_scan.linewidth_hz, results.phase_noise_scan.slot_outage_probability, '--o', 'LineWidth', 1.5);
 grid on; ylim([0 1]); xlabel('相位噪声线宽 (Hz)'); ylabel('失锁概率'); title('相位噪声扫描');
+legend({'曾经失锁概率', '时隙失锁占比'}, 'Location', 'best');
 save_figure_pair(fig, cfg.output_dir, 'robustness_scans'); close(fig);
+
+if isfield(results, 'stress') && ~isempty(results.stress)
+    fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Stress quantization comparison');
+    time_ms = results.stress(1).time_s * 1e3;
+    tiledlayout(2, 1, 'TileSpacing', 'compact');
+    nexttile; hold on;
+    for i = 1:numel(results.stress)
+        plot(time_ms, results.stress(i).mean_gain, 'LineWidth', 1.4);
+    end
+    grid on; ylim([0 1.05]); ylabel('归一化波束增益');
+    title(sprintf('困难场景量化策略对比：B=%d, SNR=%g dB, v_t=%g m/s', ...
+        cfg.stress.phase_shifter_bits, cfg.stress.tx_snr_db, cfg.stress.initial_state(4)));
+    legend({results.stress.label}, 'Location', 'best');
+    nexttile; hold on;
+    for i = 1:numel(results.stress)
+        plot(time_ms, results.stress(i).position_rmse_m, 'LineWidth', 1.4);
+    end
+    grid on; xlabel('时间 (ms)'); ylabel('位置 RMSE (m)');
+    legend({results.stress.label}, 'Location', 'best');
+    save_figure_pair(fig, cfg.output_dir, 'stress_quantization_comparison'); close(fig);
+end
 end
 
 function save_figure_pair(fig, output_dir, stem)
