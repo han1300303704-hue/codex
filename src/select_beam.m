@@ -43,6 +43,9 @@ guard_points = guard_ring_points(x_hat, sigma_r, sigma_theta, cfg);
 use_relaxed_quantization = use_quantization && ...
     isfield(cfg.beam, 'relaxed_quantization') && cfg.beam.relaxed_quantization && ...
     bits <= cfg.beam.relaxed_quantization_bits_max;
+use_cvx_sdr = use_quantization && ...
+    isfield(cfg.beam, 'cvx_sdr_quantization') && cfg.beam.cvx_sdr_quantization && ...
+    bits <= cfg.beam.cvx_sdr_bits_max && exist('cvx_begin', 'file') == 2;
 
 y_average = mean(y, 2);
 y_norm = max(real(y_average' * y_average), eps);
@@ -75,8 +78,25 @@ for i = 1:size(candidates, 2)
 end
 [best_score, best] = max(scores);
 beam = beams{best};
-selection = struct('mode', ['robust_local_' method_list{best}], 'score', best_score, ...
-    'candidate', candidate_list(:, best), 'num_candidates', numel(scores));
+best_candidate = candidate_list(:, best);
+best_method = method_list{best};
+if use_cvx_sdr
+    cvx_candidate = cvx_sdr_quantized_beam(best_candidate, uncertainty_points, uncertainty_weights, bits, cfg);
+    reference_gain = beam_gain(best_candidate, beam, cfg);
+    cvx_center_gain = beam_gain(best_candidate, cvx_candidate, cfg);
+    if cvx_center_gain >= cfg.beam.relaxed_min_center_gain_ratio * max(reference_gain, eps)
+        cvx_score = score_beam(cvx_candidate, uncertainty_points, uncertainty_weights, ...
+            guard_points, y_average, y_norm, cfg);
+        scores(end + 1) = cvx_score; %#ok<AGROW>
+        if cvx_score > best_score
+            best_score = cvx_score;
+            beam = cvx_candidate;
+            best_method = cvx_candidate.quantization.method;
+        end
+    end
+end
+selection = struct('mode', ['robust_local_' best_method], 'score', best_score, ...
+    'candidate', best_candidate, 'num_candidates', numel(scores));
 end
 
 function score = score_beam(beam, uncertainty_points, uncertainty_weights, guard_points, y_average, y_norm, cfg)

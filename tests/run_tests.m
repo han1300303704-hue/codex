@@ -8,6 +8,7 @@ test_focus_peak();
 test_quantizer_levels();
 test_offset_quantizer_not_worse();
 test_relaxed_quantizer_levels();
+test_cvx_sdr_quantizer_if_available();
 test_ideal_tracking_convergence();
 test_joint_improves_over_uncompensated();
 test_result_artifacts();
@@ -77,6 +78,27 @@ phase_index = beam.quantized_phase / step;
 assert(max(abs(phase_index - round(phase_index))) < 1e-10, ...
     'Relaxed quantized beam phases must lie on valid B-bit levels.');
 assert(abs(norm(beam.weights) - 1) < 1e-10, 'Relaxed beam weights must have unit norm.');
+end
+
+function test_cvx_sdr_quantizer_if_available()
+if exist('cvx_begin', 'file') ~= 2
+    fprintf('Skipping CVX-SDR quantizer test because CVX is not on the MATLAB path.\n');
+    return;
+end
+cfg = default_config(struct('n_ant', 8, 'n_slots', 4, 'n_mc', 1, 'figure_visible', 'off'));
+cfg.beam.cvx_sdr_max_full_ant = 16;
+cfg.beam.cvx_sdr_randomizations = 4;
+state = [2.0; deg2rad(15); 0; 0; 0; 0];
+points = [state(1), state(1) + 0.03, state(1) - 0.03; ...
+    state(2), state(2) + deg2rad(0.1), state(2) - deg2rad(0.1)];
+weights = [0.5, 0.25, 0.25];
+bits = 2;
+beam = cvx_sdr_quantized_beam(state(1:2), points, weights, bits, cfg);
+step = 2 * pi / 2^bits;
+phase_index = beam.quantized_phase / step;
+assert(max(abs(phase_index - round(phase_index))) < 1e-10, ...
+    'CVX-SDR quantized beam phases must lie on valid B-bit levels.');
+assert(abs(norm(beam.weights) - 1) < 1e-10, 'CVX-SDR beam weights must have unit norm.');
 end
 
 function test_ideal_tracking_convergence()
