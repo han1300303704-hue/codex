@@ -40,30 +40,59 @@ end
 uncertainty_points = local_points(x_hat, sigma_r, sigma_theta, cfg);
 uncertainty_weights = local_weights(x_hat, uncertainty_points, sigma_r, sigma_theta);
 guard_points = guard_ring_points(x_hat, sigma_r, sigma_theta, cfg);
+use_relaxed_quantization = use_quantization && ...
+    isfield(cfg.beam, 'relaxed_quantization') && cfg.beam.relaxed_quantization && ...
+    bits <= cfg.beam.relaxed_quantization_bits_max;
+
 y_average = mean(y, 2);
 y_norm = max(real(y_average' * y_average), eps);
-scores = -inf(1, size(candidates, 2));
-beams = cell(1, size(candidates, 2));
+scores = [];
+beams = {};
+candidate_list = [];
+method_list = {};
 for i = 1:size(candidates, 2)
-    beams{i} = focus_beam(candidates(1, i), candidates(2, i), bits, cfg);
-    main_gains = zeros(1, size(uncertainty_points, 2));
-    guard_gains = zeros(1, size(guard_points, 2));
-    for p = 1:size(uncertainty_points, 2)
-        main_gains(p) = beam_gain(uncertainty_points(:, p), beams{i}, cfg);
+    focus_candidate = focus_beam(candidates(1, i), candidates(2, i), bits, cfg);
+    candidate_beams = {focus_candidate};
+    candidate_methods = {'focus_quantized'};
+    if use_relaxed_quantization
+        relaxed_candidate = relaxed_quantized_beam(candidates(:, i), uncertainty_points, ...
+            uncertainty_weights, bits, cfg);
+        focus_center_gain = beam_gain(candidates(:, i), focus_candidate, cfg);
+        relaxed_center_gain = beam_gain(candidates(:, i), relaxed_candidate, cfg);
+        if relaxed_center_gain >= cfg.beam.relaxed_min_center_gain_ratio * max(focus_center_gain, eps)
+            candidate_beams{end + 1} = relaxed_candidate; %#ok<AGROW>
+            candidate_methods{end + 1} = 'relaxed_region'; %#ok<AGROW>
+        end
     end
-    for p = 1:size(guard_points, 2)
-        guard_gains(p) = beam_gain(guard_points(:, p), beams{i}, cfg);
+    for b = 1:numel(candidate_beams)
+        beam_index = numel(beams) + 1;
+        beams{beam_index} = candidate_beams{b}; %#ok<AGROW>
+        candidate_list(:, beam_index) = candidates(:, i); %#ok<AGROW>
+        method_list{beam_index} = candidate_methods{b}; %#ok<AGROW>
+        scores(beam_index) = score_beam(candidate_beams{b}, uncertainty_points, uncertainty_weights, ...
+            guard_points, y_average, y_norm, cfg); %#ok<AGROW>
     end
-    predicted_score = sum(uncertainty_weights .* main_gains) - cfg.beam.robust_penalty * ...
-        (std(main_gains) + mean(guard_gains));
-    measurement_score = abs(beams{i}.weights' * y_average)^2 / y_norm;
-    scores(i) = (1 - cfg.beam.measurement_blend) * predicted_score + ...
-        cfg.beam.measurement_blend * measurement_score;
 end
 [best_score, best] = max(scores);
 beam = beams{best};
-selection = struct('mode', 'robust_local', 'score', best_score, ...
-    'candidate', candidates(:, best), 'num_candidates', numel(scores));
+selection = struct('mode', ['robust_local_' method_list{best}], 'score', best_score, ...
+    'candidate', candidate_list(:, best), 'num_candidates', numel(scores));
+end
+
+function score = score_beam(beam, uncertainty_points, uncertainty_weights, guard_points, y_average, y_norm, cfg)
+    main_gains = zeros(1, size(uncertainty_points, 2));
+    guard_gains = zeros(1, size(guard_points, 2));
+    for p = 1:size(uncertainty_points, 2)
+        main_gains(p) = beam_gain(uncertainty_points(:, p), beam, cfg);
+    end
+    for p = 1:size(guard_points, 2)
+        guard_gains(p) = beam_gain(guard_points(:, p), beam, cfg);
+    end
+    predicted_score = sum(uncertainty_weights .* main_gains) - cfg.beam.robust_penalty * ...
+        (std(main_gains) + mean(guard_gains));
+    measurement_score = abs(beam.weights' * y_average)^2 / y_norm;
+    score = (1 - cfg.beam.measurement_blend) * predicted_score + ...
+        cfg.beam.measurement_blend * measurement_score;
 end
 
 function points = local_points(x_hat, sigma_r, sigma_theta, cfg)
