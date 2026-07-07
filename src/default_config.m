@@ -92,6 +92,7 @@ cfg.beam.cvx_sdr_max_full_ant = 96;
 cfg.beam.cvx_sdr_block_count = 64;
 cfg.beam.cvx_sdr_randomizations = 48;
 cfg.beam.cvx_sdr_solver = '';
+cfg.beam.cvx_sdr_objective = 'maxmin';
 cfg.beam.loss_gain_threshold = 0.5;
 cfg.beam.loss_consecutive_slots = 3;
 cfg.beam.reacquire_ranges = linspace(0.8, 4.0, 9);

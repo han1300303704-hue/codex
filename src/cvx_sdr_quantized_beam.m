@@ -32,20 +32,19 @@ end
 
 function beam = full_element_sdr(focus, responses, weights, bits, cfg)
 n = cfg.n_ant;
-R = zeros(n, n);
+R_points = zeros(n, n, numel(weights));
 for i = 1:numel(weights)
     a = responses(:, i);
-    R = R + weights(i) * (a * a');
+    R_points(:, :, i) = a * a';
 end
-R = (R + R') / 2;
-Q = solve_sdr(R, cfg);
+Q = solve_sdr(R_points, weights, cfg);
 
 candidates = randomized_phases(Q, bits, cfg);
 focus_beam_candidate = focus_beam(focus(1), focus(2), bits, cfg);
 candidates(:, end + 1) = focus_beam_candidate.quantized_phase;
 
-[phase, metric] = best_phase_candidate(candidates, responses, weights, cfg.n_ant);
-beam = make_quantized_beam(phase, focus, bits, metric, 'cvx_sdr_full_element', cfg);
+[phase, metric] = best_phase_candidate(candidates, responses, weights, cfg.n_ant, cfg);
+beam = make_quantized_beam(phase, focus, bits, metric, ['cvx_sdr_full_element_' cfg.beam.cvx_sdr_objective], cfg);
 end
 
 function beam = block_residual_sdr(focus, responses, weights, bits, cfg)
@@ -62,13 +61,12 @@ for i = 1:size(responses, 2)
     end
 end
 
-R = zeros(g_count, g_count);
+R_points = zeros(g_count, g_count, numel(weights));
 for i = 1:numel(weights)
     d = D(:, i);
-    R = R + weights(i) * (conj(d) * d.');
+    R_points(:, :, i) = conj(d) * d.';
 end
-R = (R + R') / 2;
-Q = solve_sdr(R, cfg);
+Q = solve_sdr(R_points, weights, cfg);
 
 correction_candidates = randomized_phases(Q, bits, cfg);
 correction_candidates(:, end + 1) = zeros(g_count, 1);
@@ -77,24 +75,45 @@ best_metric = -inf;
 best_phase = base.quantized_phase;
 for i = 1:size(correction_candidates, 2)
     phase = mod(base.quantized_phase + correction_candidates(groups, i), 2 * pi);
-    metric = region_metric(phase, responses, weights, cfg.n_ant);
+    metric = objective_metric(phase, responses, weights, cfg.n_ant, cfg);
     if metric > best_metric
         best_metric = metric;
         best_phase = phase;
     end
 end
-beam = make_quantized_beam(best_phase, focus, bits, best_metric, 'cvx_sdr_block_residual', cfg);
+beam = make_quantized_beam(best_phase, focus, bits, best_metric, ['cvx_sdr_block_residual_' cfg.beam.cvx_sdr_objective], cfg);
 end
 
-function Q = solve_sdr(R, cfg)
-n = size(R, 1);
+function Q = solve_sdr(R_points, weights, cfg)
+n = size(R_points, 1);
+n_points = size(R_points, 3);
 if isfield(cfg.beam, 'cvx_sdr_solver') && ~isempty(cfg.beam.cvx_sdr_solver)
     cvx_solver(cfg.beam.cvx_sdr_solver);
 end
+objective = 'average';
+if isfield(cfg.beam, 'cvx_sdr_objective')
+    objective = lower(cfg.beam.cvx_sdr_objective);
+end
 cvx_begin sdp quiet
     variable Q(n, n) hermitian semidefinite
-    maximize(real(trace(R * Q)))
-    diag(Q) == ones(n, 1);
+    if strcmp(objective, 'maxmin')
+        variable t
+        maximize(t)
+        subject to
+            diag(Q) == ones(n, 1);
+            for p = 1:n_points
+                real(trace(R_points(:, :, p) * Q)) >= t;
+            end
+    else
+        R = zeros(n, n);
+        for p = 1:n_points
+            R = R + weights(p) * R_points(:, :, p);
+        end
+        R = (R + R') / 2;
+        maximize(real(trace(R * Q)))
+        subject to
+            diag(Q) == ones(n, 1);
+    end
 cvx_end
 Q = full((Q + Q') / 2);
 if ~strcmpi(cvx_status, 'Solved') && ~strcmpi(cvx_status, 'Inaccurate/Solved')
@@ -135,11 +154,11 @@ for i = 1:numel(offsets)
 end
 end
 
-function [best_phase, best_metric] = best_phase_candidate(candidates, responses, weights, n_ant)
+function [best_phase, best_metric] = best_phase_candidate(candidates, responses, weights, n_ant, cfg)
 best_metric = -inf;
 best_phase = candidates(:, 1);
 for i = 1:size(candidates, 2)
-    metric = region_metric(candidates(:, i), responses, weights, n_ant);
+    metric = objective_metric(candidates(:, i), responses, weights, n_ant, cfg);
     if metric > best_metric
         best_metric = metric;
         best_phase = candidates(:, i);
@@ -180,5 +199,22 @@ w = exp(1j * phase(:)) ./ sqrt(n_ant);
 metric = 0;
 for i = 1:numel(weights)
     metric = metric + weights(i) * abs(responses(:, i)' * w)^2;
+end
+end
+
+function metric = objective_metric(phase, responses, weights, n_ant, cfg)
+objective = 'average';
+if isfield(cfg.beam, 'cvx_sdr_objective')
+    objective = lower(cfg.beam.cvx_sdr_objective);
+end
+w = exp(1j * phase(:)) ./ sqrt(n_ant);
+point_gains = zeros(1, numel(weights));
+for i = 1:numel(weights)
+    point_gains(i) = abs(responses(:, i)' * w)^2;
+end
+if strcmp(objective, 'maxmin')
+    metric = min(point_gains);
+else
+    metric = sum(weights .* point_gains);
 end
 end

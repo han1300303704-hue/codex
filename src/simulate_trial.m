@@ -21,6 +21,7 @@ x_hat(2) = wrap_angle(x_hat(2));
 P = cfg.initial_cov;
 
 gain = zeros(1, n_slots);
+hardware_normalized_gain = zeros(1, n_slots);
 range_error = zeros(1, n_slots);
 angle_error = zeros(1, n_slots);
 position_error = zeros(1, n_slots);
@@ -32,6 +33,9 @@ loss_counter = 0;
 loss_events = 0;
 reacquisition_count = 0;
 outage_slots = 0;
+hardware_outage_slots = 0;
+hardware_loss_counter = 0;
+hardware_loss_events = 0;
 beam_modes = cell(1, n_slots);
 current_beam = [];
 
@@ -92,6 +96,7 @@ for k = 1:n_slots
     current_beam = beam;
 
     gain(k) = beam_gain(truth, beam, cfg);
+    hardware_normalized_gain(k) = min(gain(k) / quantization_efficiency(beam.bits), 1.05);
     range_error(k) = abs(x_hat(1) - truth(1));
     angle_error(k) = abs(wrap_angle(x_hat(2) - truth(2)));
     position_error(k) = euclidean_position_error(x_hat, truth);
@@ -111,10 +116,22 @@ for k = 1:n_slots
         reacquire = true;
         loss_counter = 0;
     end
+
+    if hardware_normalized_gain(k) < cfg.beam.loss_gain_threshold
+        hardware_outage_slots = hardware_outage_slots + 1;
+        hardware_loss_counter = hardware_loss_counter + 1;
+    else
+        hardware_loss_counter = 0;
+    end
+    if hardware_loss_counter >= cfg.beam.loss_consecutive_slots
+        hardware_loss_events = hardware_loss_events + 1;
+        hardware_loss_counter = 0;
+    end
 end
 
 trial = struct();
 trial.gain = gain;
+trial.hardware_normalized_gain = hardware_normalized_gain;
 trial.range_error = range_error;
 trial.angle_error = angle_error;
 trial.position_error = position_error;
@@ -124,6 +141,9 @@ trial.doppler_spread_hz = doppler_spread_hz;
 trial.loss_events = loss_events;
 trial.lost = loss_events > 0;
 trial.outage_fraction = outage_slots / n_slots;
+trial.hardware_loss_events = hardware_loss_events;
+trial.hardware_lost = hardware_loss_events > 0;
+trial.hardware_outage_fraction = hardware_outage_slots / n_slots;
 trial.reacquisition_count = reacquisition_count;
 trial.beam_modes = beam_modes;
 end

@@ -30,6 +30,8 @@ joint_scan_scenario = joint_scan_scenario(1);
 bit_scan = struct('bits', cfg.scan.phase_bits, ...
     'loss_probability', zeros(size(cfg.scan.phase_bits)), ...
     'slot_outage_probability', zeros(size(cfg.scan.phase_bits)), ...
+    'hardware_loss_probability', zeros(size(cfg.scan.phase_bits)), ...
+    'hardware_slot_outage_probability', zeros(size(cfg.scan.phase_bits)), ...
     'mean_gain', zeros(size(cfg.scan.phase_bits)));
 for i = 1:numel(cfg.scan.phase_bits)
     scan_cfg = cfg;
@@ -40,12 +42,16 @@ for i = 1:numel(cfg.scan.phase_bits)
     scan_result = run_monte_carlo(scan_cfg, joint_scan_scenario);
     bit_scan.loss_probability(i) = scan_result.loss_probability;
     bit_scan.slot_outage_probability(i) = scan_result.slot_outage_probability;
+    bit_scan.hardware_loss_probability(i) = scan_result.hardware_loss_probability;
+    bit_scan.hardware_slot_outage_probability(i) = scan_result.hardware_slot_outage_probability;
     bit_scan.mean_gain(i) = mean(scan_result.mean_gain);
 end
 
 pn_scan = struct('linewidth_hz', cfg.scan.phase_linewidth_hz, ...
     'loss_probability', zeros(size(cfg.scan.phase_linewidth_hz)), ...
     'slot_outage_probability', zeros(size(cfg.scan.phase_linewidth_hz)), ...
+    'hardware_loss_probability', zeros(size(cfg.scan.phase_linewidth_hz)), ...
+    'hardware_slot_outage_probability', zeros(size(cfg.scan.phase_linewidth_hz)), ...
     'mean_gain', zeros(size(cfg.scan.phase_linewidth_hz)));
 for i = 1:numel(cfg.scan.phase_linewidth_hz)
     scan_cfg = cfg;
@@ -56,6 +62,8 @@ for i = 1:numel(cfg.scan.phase_linewidth_hz)
     scan_result = run_monte_carlo(scan_cfg, joint_scan_scenario);
     pn_scan.loss_probability(i) = scan_result.loss_probability;
     pn_scan.slot_outage_probability(i) = scan_result.slot_outage_probability;
+    pn_scan.hardware_loss_probability(i) = scan_result.hardware_loss_probability;
+    pn_scan.hardware_slot_outage_probability(i) = scan_result.hardware_slot_outage_probability;
     pn_scan.mean_gain(i) = mean(scan_result.mean_gain);
 end
 

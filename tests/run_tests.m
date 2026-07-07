@@ -4,6 +4,7 @@ function run_tests()
 root = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(root, 'src'));
 fprintf('Running near-field beam-tracking tests...\n');
+test_quantization_efficiency();
 test_focus_peak();
 test_quantizer_levels();
 test_offset_quantizer_not_worse();
@@ -13,6 +14,17 @@ test_ideal_tracking_convergence();
 test_joint_improves_over_uncompensated();
 test_result_artifacts();
 fprintf('All tests passed.\n');
+end
+
+function test_quantization_efficiency()
+assert(abs(quantization_efficiency(1) - 0.4052847346) < 1e-8, ...
+    '1-bit quantization efficiency must match the sinc-squared ceiling.');
+assert(quantization_efficiency(2) > quantization_efficiency(1), ...
+    '2-bit efficiency must exceed 1-bit efficiency.');
+assert(quantization_efficiency(3) > quantization_efficiency(2), ...
+    '3-bit efficiency must exceed 2-bit efficiency.');
+assert(abs(quantization_efficiency(inf) - 1) < eps, ...
+    'Continuous phase efficiency must be one.');
 end
 
 function cfg = small_cfg()

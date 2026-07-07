@@ -14,6 +14,22 @@ grid on; ylim([0 1.05]); xlabel('时间 (ms)'); ylabel('归一化波束增益');
 legend(labels, 'Location', 'best'); title('近场预测波束跟踪增益');
 save_figure_pair(fig, cfg.output_dir, 'beam_gain'); close(fig);
 
+if isfield(results.core, 'mean_hardware_normalized_gain')
+    fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Hardware-normalized beam gain');
+    hold on;
+    for i = 1:numel(results.core)
+        plot(time_ms, results.core(i).mean_hardware_normalized_gain, ...
+            'LineWidth', 1.4, 'Color', colors(i, :));
+    end
+    grid on; ylim([0 1.05]);
+    xlabel('Time (ms)');
+    ylabel('Gain / B-bit ceiling');
+    legend(labels, 'Location', 'best');
+    title('Beam tracking gain normalized by hardware quantization ceiling');
+    save_figure_pair(fig, cfg.output_dir, 'hardware_normalized_gain');
+    close(fig);
+end
+
 fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Tracking error');
 tiledlayout(3, 1, 'TileSpacing', 'compact');
 nexttile; hold on;
@@ -42,6 +58,20 @@ set(gca, 'XTick', 1:numel(labels), 'XTickLabel', labels, 'XTickLabelRotation', 2
 ylabel('概率'); title('固定参数下的失锁概率');
 legend({'曾经失锁概率', '时隙失锁占比'}, 'Location', 'best');
 save_figure_pair(fig, cfg.output_dir, 'lock_loss_probability'); close(fig);
+
+if isfield(results.core, 'hardware_loss_probability')
+    fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Hardware-normalized lock loss');
+    hardware_losses = [results.core.hardware_loss_probability];
+    hardware_slot_outages = [results.core.hardware_slot_outage_probability];
+    bar([hardware_losses(:), hardware_slot_outages(:)]);
+    grid on; ylim([0 1]);
+    set(gca, 'XTick', 1:numel(labels), 'XTickLabel', labels, 'XTickLabelRotation', 20);
+    ylabel('Probability');
+    title('Lock loss relative to B-bit hardware ceiling');
+    legend({'Trial loss', 'Slot outage'}, 'Location', 'best');
+    save_figure_pair(fig, cfg.output_dir, 'hardware_normalized_lock_loss');
+    close(fig);
+end
 
 fig = figure('Visible', cfg.figure_visible, 'Color', 'w', 'Name', 'Robustness scans');
 tiledlayout(1, 2, 'TileSpacing', 'compact');
