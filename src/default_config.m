@@ -12,7 +12,7 @@ cfg.seed = 20260623;
 cfg.c = 299792458;
 cfg.fc = 300e9;
 cfg.lambda = cfg.c / cfg.fc;
-cfg.n_ant = 1024;
+cfg.n_ant = 256;
 cfg.spacing = cfg.lambda / 2;
 cfg.tx_snr_db = 10;
 cfg.track_period = 50e-6;
@@ -28,6 +28,8 @@ cfg.initial_cov = diag(cfg.initial_error_std .^ 2);
 cfg.channel = struct();
 cfg.channel.path_gain_at_1m = 1;
 cfg.channel.min_range = 1.0;
+cfg.channel.distance_model = 'taylor';
+cfg.channel.taylor_order = 2;
 
 cfg.motion = struct();
 cfg.motion.accel_std = 0.08;              % m/s^2 per tracking slot

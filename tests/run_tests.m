@@ -5,6 +5,7 @@ root = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(root, 'src'));
 fprintf('Running near-field beam-tracking tests...\n');
 test_quantization_efficiency();
+test_taylor_distance_model();
 test_focus_peak();
 test_quantizer_levels();
 test_offset_quantizer_not_worse();
@@ -25,6 +26,23 @@ assert(quantization_efficiency(3) > quantization_efficiency(2), ...
     '3-bit efficiency must exceed 2-bit efficiency.');
 assert(abs(quantization_efficiency(inf) - 1) < eps, ...
     'Continuous phase efficiency must be one.');
+end
+
+function test_taylor_distance_model()
+cfg = default_config(struct('n_ant', 128));
+cfg.channel.distance_model = 'exact';
+exact = spherical_channel(cfg.initial_state(1), cfg.initial_state(2), cfg);
+cfg.channel.distance_model = 'taylor';
+cfg.channel.taylor_order = 2;
+taylor2 = spherical_channel(cfg.initial_state(1), cfg.initial_state(2), cfg);
+positions = taylor2.positions;
+expected = cfg.initial_state(1) - positions * sin(cfg.initial_state(2)) + ...
+    (positions .^ 2) * cos(cfg.initial_state(2)) ^ 2 / (2 * cfg.initial_state(1));
+assert(strcmp(taylor2.distance_model, 'taylor'), 'Default distance model must support Taylor expansion.');
+assert(max(abs(taylor2.distances - expected)) < 1e-12, ...
+    'Taylor channel distance must use the second-order Fresnel approximation.');
+assert(max(abs(taylor2.distances - exact.distances)) < 1e-5, ...
+    'Second-order Taylor distance error should stay small for the test aperture.');
 end
 
 function cfg = small_cfg()
